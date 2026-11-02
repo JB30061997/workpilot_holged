@@ -22,8 +22,9 @@ $kernel = $app->make(HttpKernel::class);
 $request = Request::capture();
 $response = $kernel->handle($request);
 
-// Let PHP-FPM finish the request when the script exits. Calling
-// fastcgi_finish_request() directly drops the response body on this server.
-$response->send(flush: false);
-
 $kernel->terminate($request, $response);
+
+// Send the response after termination so no terminating callback can discard
+// the buffered body. fastcgi_finish_request() drops the body on this server.
+$response->send(flush: false);
+flush();
