@@ -21,12 +21,12 @@ const { isLoading, loaderCycle, loaderMessage } = useGlobalLoader();
                     <div class="workpilot-loader-logo" aria-hidden="true">
                         <img
                             class="workpilot-loader-logo-muted"
-                            src="/images/logo/logo_workpilot.png"
+                            src="/images/logo/work_logo.png"
                             alt=""
                         />
                         <div class="workpilot-loader-reveal">
                             <img
-                                src="/images/logo/logo_workpilot.png"
+                                src="/images/logo/work_logo.png"
                                 alt=""
                             />
                         </div>

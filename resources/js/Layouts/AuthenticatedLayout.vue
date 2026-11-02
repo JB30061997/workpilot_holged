@@ -1,11 +1,19 @@
 <script setup>
 import AppIcon from "@/Components/AppIcon.vue";
 import { MessageCircleMore } from "lucide-vue-next";
+import axios from "axios";
 import Dropdown from "@/Components/Dropdown.vue";
 import DropdownLink from "@/Components/DropdownLink.vue";
 import { useSweetAlert } from "@/Composables/useSweetAlert";
-import { Link, useForm, usePage } from "@inertiajs/vue3";
+import { Link, router, useForm, usePage } from "@inertiajs/vue3";
 import { computed, onMounted, onUnmounted, ref, watch } from "vue";
+
+const props = defineProps({
+    contentClass: {
+        type: String,
+        default: "pb-20 lg:pb-0",
+    },
+});
 
 const page = usePage();
 const { notify } = useSweetAlert();
@@ -217,6 +225,23 @@ const updateDepartment = (departmentId = departmentForm.department_id) => {
 const closeOverlays = () => {
     sidebarOpen.value = false;
     notificationsOpen.value = false;
+};
+const openNotification = async (notification) => {
+    if (!notification.read_at) {
+        await axios.patch(route("notifications.read", notification.id));
+    }
+
+    notificationsOpen.value = false;
+
+    if (notification.url) {
+        router.visit(notification.url);
+    } else {
+        router.reload({ only: ["notifications"] });
+    }
+};
+const markAllNotificationsAsRead = async () => {
+    await axios.patch(route("notifications.read-all"));
+    router.reload({ only: ["notifications"] });
 };
 const toggleSidebar = () => {
     sidebarCollapsed.value = !sidebarCollapsed.value;
@@ -665,7 +690,16 @@ onUnmounted(() => window.removeEventListener("keydown", handleEscape));
                                                 Centre d’activité
                                             </h2>
                                         </div>
+                                        <button
+                                            v-if="notificationCount"
+                                            type="button"
+                                            class="text-[10px] font-black uppercase tracking-wide text-blue-600 transition hover:text-blue-800"
+                                            @click="markAllNotificationsAsRead"
+                                        >
+                                            Tout marquer comme lu
+                                        </button>
                                         <span
+                                            v-else
                                             class="grid h-10 w-10 place-items-center rounded-xl bg-blue-50 text-blue-600"
                                             ><AppIcon
                                                 name="bell"
@@ -676,10 +710,18 @@ onUnmounted(() => window.removeEventListener("keydown", handleEscape));
                                         v-if="sharedNotifications.length"
                                         class="max-h-80 divide-y divide-slate-100 overflow-y-auto"
                                     >
-                                        <article
+                                        <button
                                             v-for="notification in sharedNotifications"
                                             :key="notification.id"
-                                            class="flex gap-3 p-4 transition hover:bg-blue-50/40"
+                                            type="button"
+                                            class="flex w-full gap-3 p-4 text-left transition hover:bg-blue-50/40"
+                                            :class="
+                                                !notification.read_at &&
+                                                'bg-blue-50/20'
+                                            "
+                                            @click="
+                                                openNotification(notification)
+                                            "
                                         >
                                             <span
                                                 class="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-blue-50 text-blue-600"
@@ -711,7 +753,7 @@ onUnmounted(() => window.removeEventListener("keydown", handleEscape));
                                                 v-if="!notification.read_at"
                                                 class="mt-2 h-2 w-2 shrink-0 rounded-full bg-blue-500"
                                             />
-                                        </article>
+                                        </button>
                                     </div>
                                     <div
                                         v-else
@@ -780,6 +822,8 @@ onUnmounted(() => window.removeEventListener("keydown", handleEscape));
                                 </div>
                                 <DropdownLink :href="route('profile.edit')"
                                     >Mon profil</DropdownLink
+                                ><DropdownLink :href="route('activities.index')"
+                                    >Mon historique</DropdownLink
                                 ><DropdownLink
                                     :href="route('logout')"
                                     method="post"
@@ -799,7 +843,7 @@ onUnmounted(() => window.removeEventListener("keydown", handleEscape));
                     <slot name="header" />
                 </div>
             </header>
-            <main class="relative pb-20 lg:pb-0"><slot /></main>
+            <main class="relative" :class="props.contentClass"><slot /></main>
             <nav
                 class="fixed inset-x-3 bottom-3 z-30 grid grid-cols-5 rounded-2xl border border-slate-200 bg-white/95 p-1.5 shadow-2xl shadow-slate-950/15 backdrop-blur-xl lg:hidden"
                 aria-label="Navigation mobile"

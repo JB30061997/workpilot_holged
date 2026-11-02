@@ -2,6 +2,10 @@
 
 namespace App\Http\Controllers;
 
+use Illuminate\Support\Str;
+use Inertia\Inertia;
+use Inertia\Response;
+
 use App\Models\Activity;
 use App\Models\Organization;
 use Illuminate\Database\Eloquent\Builder;
@@ -74,7 +78,7 @@ class ActivityController extends Controller
      * Display the audit/activity history
      * of the current organization.
      */
-    public function index(Request $request): JsonResponse
+    public function index(Request $request): JsonResponse|Response
     {
         $organization = $this->getCurrentOrganization($request);
 
@@ -250,12 +254,15 @@ class ActivityController extends Controller
             ->paginate($perPage)
             ->withQueryString();
 
-        return response()->json([
+        $baseQuery = Activity::query()
+            ->where('organization_id', $organization->id)
+            ->where('user_id', $request->user()->id);
+
+        $payload = [
             'organization' => [
                 'id' => $organization->id,
                 'name' => $organization->name,
             ],
-
             'filters' => [
                 'event' => $validated['event'] ?? null,
                 'user_id' => $validated['user_id'] ?? null,
@@ -265,9 +272,31 @@ class ActivityController extends Controller
                 'date_from' => $validated['date_from'] ?? null,
                 'date_to' => $validated['date_to'] ?? null,
             ],
-
             'activities' => $activities,
-        ]);
+            'summary' => [
+                'total' => (clone $baseQuery)->count(),
+                'created' => (clone $baseQuery)->where('event', 'created')->count(),
+                'updated' => (clone $baseQuery)->where('event', 'updated')->count(),
+                'deleted' => (clone $baseQuery)->where('event', 'deleted')->count(),
+            ],
+            'subjectTypes' => (clone $baseQuery)
+                ->whereNotNull('subject_type')
+                ->select('subject_type')
+                ->distinct()
+                ->orderBy('subject_type')
+                ->pluck('subject_type')
+                ->map(fn (string $type): array => [
+                    'value' => $type,
+                    'label' => Str::headline(class_basename($type)),
+                ])
+                ->values(),
+        ];
+
+        if ($request->wantsJson()) {
+            return response()->json($payload);
+        }
+
+        return Inertia::render('Activities/Index', $payload);
     }
 
     /**

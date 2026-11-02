@@ -1,6 +1,12 @@
 <script setup>
-import AnimatedWaveGrid from "@/Components/AnimatedWaveGrid.vue";
 import { Head, Link } from "@inertiajs/vue3";
+
+const stars = Array.from({ length: 22 }, (_, i) => ({
+    left: `${(i * 47.31 + 13) % 100}%`,
+    top: `${(i * 19.73 + 4) % 65}%`,
+    delay: `${(i * 0.71) % 8}s`,
+    duration: `${2 + (i % 4)}s`,
+}));
 
 defineProps({
     canLogin: {
@@ -18,8 +24,25 @@ defineProps({
     <Head title="Bienvenue | WorkPilot" />
 
     <main class="welcome-stage">
-        <!-- Animation existante -->
-        <AnimatedWaveGrid />
+        <!-- Même fond que les pages de connexion -->
+        <div class="welcome-background" aria-hidden="true"></div>
+        <div class="welcome-overlay" aria-hidden="true"></div>
+        <div class="welcome-stars" aria-hidden="true">
+            <span
+                v-for="(star, index) in stars"
+                :key="index"
+                class="welcome-star"
+                :style="{
+                    left: star.left,
+                    top: star.top,
+                    animationDelay: star.delay,
+                    animationDuration: star.duration,
+                }"
+            ></span>
+            <span class="welcome-shooting-star shooting-one"></span>
+            <span class="welcome-shooting-star shooting-two"></span>
+            <span class="welcome-shooting-star shooting-three"></span>
+        </div>
 
         <div class="welcome-container">
             <!-- Logo WorkPilot -->
@@ -171,7 +194,7 @@ defineProps({
     justify-content: center;
     overflow: hidden;
     padding: 40px 20px;
-    background: #f8fafc;
+    background: #06152e;
 }
 
 /* ==============================
@@ -198,7 +221,7 @@ defineProps({
     justify-content: center;
     gap: 11px;
     margin-bottom: 28px;
-    color: #0f172a;
+    color: #ffffff;
     font-size: 16px;
     font-weight: 800;
     letter-spacing: -0.04em;
@@ -225,10 +248,11 @@ defineProps({
     box-sizing: border-box;
     width: 100%;
     padding: 48px;
-    border: 1px solid #f1f5f9;
-    border-radius: 0;
-    background: #ffffff;
-    box-shadow: 0 24px 75px -28px rgba(15, 23, 42, 0.24);
+    border: 1px solid rgba(255, 255, 255, 0.6);
+    border-radius: 18px;
+    background: rgba(255, 255, 255, 0.95);
+    backdrop-filter: blur(20px);
+    box-shadow: 0 30px 90px rgba(0, 0, 0, 0.35);
     animation: welcome-card-in 650ms cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 
@@ -340,7 +364,7 @@ defineProps({
 
 .welcome-action-secondary {
     border: 1px solid #dbe5f2;
-    background: #f8fafc;
+    background: #06152e;
     color: #2563eb;
 }
 
@@ -356,7 +380,7 @@ defineProps({
 
 .welcome-footer {
     margin-top: 26px;
-    color: #64748b;
+    color: rgba(255, 255, 255, 0.82);
     font-size: 12px;
     font-weight: 500;
     letter-spacing: 0.025em;
@@ -422,6 +446,99 @@ defineProps({
     .welcome-action,
     .action-arrow {
         transition: none;
+    }
+}
+
+/* Fond commun aux écrans d’authentification */
+.welcome-background,
+.welcome-overlay,
+.welcome-stars {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+}
+.welcome-background {
+    background: url("/images/auth_background.png") center / cover no-repeat;
+    animation: welcome-bg-zoom 30s ease-in-out infinite alternate;
+}
+.welcome-overlay {
+    background: rgba(2, 6, 23, 0.25);
+}
+.welcome-stars {
+    overflow: hidden;
+}
+.welcome-star {
+    position: absolute;
+    width: 3px;
+    height: 3px;
+    border-radius: 50%;
+    background: #fff;
+    box-shadow: 0 0 8px 2px rgba(147, 197, 253, 0.8);
+    animation: welcome-twinkle 3s ease-in-out infinite alternate;
+}
+.welcome-shooting-star {
+    position: absolute;
+    width: 130px;
+    height: 2px;
+    border-radius: 999px;
+    background: linear-gradient(90deg, transparent, #93c5fd, #fff);
+    opacity: 0;
+    transform: rotate(-25deg);
+    animation: welcome-shoot 8s linear infinite;
+}
+.shooting-one {
+    top: 12%;
+    left: 15%;
+}
+.shooting-two {
+    top: 22%;
+    left: 55%;
+    animation-delay: 3s;
+}
+.shooting-three {
+    top: 8%;
+    left: 75%;
+    animation-delay: 6s;
+}
+@keyframes welcome-bg-zoom {
+    from {
+        transform: scale(1);
+    }
+    to {
+        transform: scale(1.06);
+    }
+}
+@keyframes welcome-twinkle {
+    0%,
+    100% {
+        opacity: 0.2;
+        transform: scale(0.7);
+    }
+    50% {
+        opacity: 1;
+        transform: scale(1.4);
+    }
+}
+@keyframes welcome-shoot {
+    0%,
+    80% {
+        opacity: 0;
+        transform: translate(0, 0) rotate(-25deg);
+    }
+    83% {
+        opacity: 1;
+    }
+    94%,
+    100% {
+        opacity: 0;
+        transform: translate(250px, 120px) rotate(-25deg);
+    }
+}
+@media (prefers-reduced-motion: reduce) {
+    .welcome-background,
+    .welcome-star,
+    .welcome-shooting-star {
+        animation: none;
     }
 }
 </style>

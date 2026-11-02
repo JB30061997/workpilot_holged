@@ -38,6 +38,31 @@ class HandleInertiaRequests extends Middleware
 
         return [
             ...parent::share($request),
+
+            'notifications' => fn () => $request->user()
+                ? $request->user()
+                    ->notifications()
+                    ->latest()
+                    ->limit(30)
+                    ->get()
+                    ->map(function ($notification) {
+                        $data = $notification->data;
+
+                        return [
+                            'id' => $notification->id,
+                            'title' => $data['title'] ?? 'Notification',
+                            'message' => $data['message'] ?? '',
+                            'url' => $data['url'] ?? null,
+                            'icon' => $data['icon'] ?? 'bell',
+                            'read_at' => $notification->read_at,
+                            'time' => $notification->created_at
+                                ->diffForHumans(),
+                        ];
+                    })
+                    ->values()
+                    ->all()
+                : [],
+
             'auth' => [
                 'user' => $user,
             ],

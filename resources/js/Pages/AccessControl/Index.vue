@@ -21,8 +21,6 @@ const props = defineProps({
     organization: Object,
     roles: Array,
     permissions: Array,
-    departments: Array,
-    members: Array,
     canManageAccess: Boolean,
 });
 
@@ -34,8 +32,6 @@ const roleModalOpen = ref(false);
 const permissionModalOpen = ref(false);
 const editingRole = ref(null);
 const editingPermission = ref(null);
-const assignmentModalOpen = ref(false);
-const editingMember = ref(null);
 
 const roleForm = useForm({
     name: "",
@@ -50,10 +46,6 @@ const permissionForm = useForm({
     module: "",
     description: "",
     is_active: true,
-});
-const assignmentForm = useForm({
-    role_id: "",
-    department_ids: [],
 });
 
 const modules = computed(() => [
@@ -233,27 +225,6 @@ const removePermission = async (permission) => {
         });
     }
 };
-const openAssignment = (member) => {
-    editingMember.value = member;
-    assignmentForm.role_id = member.roles?.[0]?.id ?? "";
-    assignmentForm.department_ids = (member.departments ?? []).map(
-        (department) => department.id,
-    );
-    assignmentForm.clearErrors();
-    assignmentModalOpen.value = true;
-};
-const closeAssignment = () => {
-    if (assignmentForm.processing) return;
-    assignmentModalOpen.value = false;
-    editingMember.value = null;
-    assignmentForm.reset();
-};
-const submitAssignment = () => {
-    assignmentForm.patch(route("users.update", editingMember.value.id), {
-        preserveScroll: true,
-        onSuccess: closeAssignment,
-    });
-};
 </script>
 
 <template>
@@ -281,7 +252,7 @@ const submitAssignment = () => {
                         </p>
                     </div>
                     <button
-                        v-if="canManageAccess && activeTab !== 'assignments'"
+                        v-if="canManageAccess"
                         type="button"
                         class="inline-flex items-center justify-center gap-2 rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-bold text-white shadow-lg shadow-blue-600/20 transition hover:bg-blue-700"
                         @click="
@@ -359,11 +330,6 @@ const submitAssignment = () => {
                                     key: 'permissions',
                                     label: 'Permissions',
                                     count: permissions.length,
-                                },
-                                {
-                                    key: 'assignments',
-                                    label: 'Affectations',
-                                    count: members.length,
                                 },
                             ]"
                             :key="item.key"
@@ -529,10 +495,7 @@ const submitAssignment = () => {
                     </p>
                 </div>
 
-                <div
-                    v-else-if="activeTab === 'permissions'"
-                    class="divide-y divide-slate-100"
-                >
+                <div v-else class="divide-y divide-slate-100">
                     <section
                         v-for="(
                             modulePermissions, module
@@ -611,38 +574,6 @@ const submitAssignment = () => {
                     >
                         Aucune permission trouvée.
                     </p>
-                </div>
-                <div v-else class="grid gap-3 p-4 lg:grid-cols-2">
-                    <article
-                        v-for="member in members"
-                        :key="member.id"
-                        class="flex items-start justify-between gap-4 rounded-2xl border border-slate-200 p-4"
-                    >
-                        <div class="min-w-0">
-                            <p class="font-black text-slate-900">{{ member.name }}</p>
-                            <p class="text-xs text-slate-400">{{ member.email }}</p>
-                            <div class="mt-3 flex flex-wrap gap-1.5">
-                                <span
-                                    v-for="role in member.roles"
-                                    :key="role.id"
-                                    class="rounded-full bg-blue-50 px-2.5 py-1 text-[10px] font-bold text-blue-700"
-                                >{{ role.name }}</span>
-                                <span
-                                    v-for="item in member.departments"
-                                    :key="`department-${item.id}`"
-                                    class="rounded-full bg-cyan-50 px-2.5 py-1 text-[10px] font-bold text-cyan-700"
-                                >{{ item.name }}</span>
-                            </div>
-                        </div>
-                        <button
-                            v-if="canManageAccess"
-                            type="button"
-                            class="shrink-0 rounded-xl border border-blue-200 px-3 py-2 text-xs font-bold text-blue-700 hover:bg-blue-50"
-                            @click="openAssignment(member)"
-                        >
-                            Affecter
-                        </button>
-                    </article>
                 </div>
             </section>
         </main>
@@ -872,60 +803,6 @@ const submitAssignment = () => {
                                 ? "Enregistrement..."
                                 : "Enregistrer"
                         }}
-                    </button>
-                </div>
-            </form>
-        </Modal>
-
-        <Modal :show="assignmentModalOpen" max-width="2xl" @close="closeAssignment">
-            <form class="grid gap-5 p-6 sm:p-8" @submit.prevent="submitAssignment">
-                <div>
-                    <p class="text-[10px] font-black uppercase tracking-[0.18em] text-blue-600">
-                        {{ organization.name }}
-                    </p>
-                    <h2 class="mt-1 text-xl font-black text-slate-900">
-                        Affectation de {{ editingMember?.name }}
-                    </h2>
-                    <p class="mt-1 text-sm text-slate-500">
-                        Choisissez son rôle et les départements qu’il peut gérer.
-                    </p>
-                </div>
-                <label class="grid gap-1.5 text-sm font-bold text-slate-700">
-                    Rôle
-                    <select v-model="assignmentForm.role_id" class="rounded-xl border-slate-200">
-                        <option value="">Sans rôle</option>
-                        <option v-for="role in roles" :key="role.id" :value="role.id">
-                            {{ role.name }}
-                        </option>
-                    </select>
-                    <InputError :message="assignmentForm.errors.role_id" />
-                </label>
-                <fieldset class="grid gap-3 rounded-2xl border border-slate-200 p-4">
-                    <legend class="px-1 text-sm font-black text-slate-800">Départements</legend>
-                    <div class="grid gap-2 sm:grid-cols-2">
-                        <label
-                            v-for="item in departments"
-                            :key="item.id"
-                            class="flex cursor-pointer items-center gap-3 rounded-xl border p-3 text-sm font-bold"
-                            :class="assignmentForm.department_ids.includes(item.id) ? 'border-blue-300 bg-blue-50 text-blue-800' : 'border-slate-200 text-slate-600'"
-                        >
-                            <input
-                                v-model="assignmentForm.department_ids"
-                                type="checkbox"
-                                :value="item.id"
-                                class="rounded border-slate-300 text-blue-600 focus:ring-blue-500"
-                            />
-                            {{ item.name }}
-                        </label>
-                    </div>
-                    <InputError :message="assignmentForm.errors.department_ids" />
-                </fieldset>
-                <div class="flex justify-end gap-2 border-t border-slate-100 pt-4">
-                    <button type="button" class="rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-bold text-slate-600" @click="closeAssignment">
-                        Annuler
-                    </button>
-                    <button :disabled="assignmentForm.processing" class="rounded-xl bg-blue-600 px-5 py-2.5 text-sm font-bold text-white disabled:opacity-50">
-                        Enregistrer l’affectation
                     </button>
                 </div>
             </form>

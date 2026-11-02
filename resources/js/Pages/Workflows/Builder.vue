@@ -14,6 +14,7 @@ import {
     GitBranch,
     Maximize2,
     Palette,
+    PanelLeftOpen,
     Plus,
     Redo2,
     Save,
@@ -22,6 +23,7 @@ import {
     Square,
     Trash2,
     Undo2,
+    X,
     ZoomIn,
     ZoomOut,
 } from "lucide-vue-next";
@@ -37,6 +39,7 @@ const editable = computed(
 );
 const nodeWidth = 300;
 const nodeHeight = 178;
+const workspacePadding = 1200;
 const nodeSize = (node) => ({
     width: Math.max(230, Number(node.data?.width) || nodeWidth),
     height: Math.max(145, Number(node.data?.height) || nodeHeight),
@@ -66,6 +69,8 @@ const canvasHeight = computed(() =>
         ),
     ),
 );
+const workspaceWidth = computed(() => canvasWidth.value * zoom.value + workspacePadding * 2);
+const workspaceHeight = computed(() => canvasHeight.value * zoom.value + workspacePadding * 2);
 const canvas = ref(null);
 const name = ref(props.workflow.name);
 const description = ref(props.workflow.description || "");
@@ -93,7 +98,7 @@ const inlineValue = ref("");
 const editingWorkflowName = ref(false);
 const connectingFrom = ref(null);
 const zoom = ref(1);
-const pan = ref({ x: 80, y: 70 });
+const libraryOpen = ref(false);
 const busy = ref(false);
 const showAIModal = ref(false);
 const errors = ref({});
@@ -439,10 +444,10 @@ const dropNode = (event) => {
     const rect = canvas.value.getBoundingClientRect();
     addNode(
         JSON.parse(raw),
-        (event.clientX - rect.left + canvas.value.scrollLeft - pan.value.x) /
+        (event.clientX - rect.left + canvas.value.scrollLeft - workspacePadding) /
             zoom.value -
             nodeWidth / 2,
-        (event.clientY - rect.top + canvas.value.scrollTop - pan.value.y) /
+        (event.clientY - rect.top + canvas.value.scrollTop - workspacePadding) /
             zoom.value -
             nodeHeight / 2,
     );
@@ -489,8 +494,8 @@ const startPan = (event) => {
     panState = {
         startX: event.clientX,
         startY: event.clientY,
-        x: pan.value.x,
-        y: pan.value.y,
+        scrollLeft: canvas.value.scrollLeft,
+        scrollTop: canvas.value.scrollTop,
     };
 };
 const pointerMove = (event) => {
@@ -532,11 +537,10 @@ const pointerMove = (event) => {
                 ),
             };
     }
-    if (panState)
-        pan.value = {
-            x: panState.x + event.clientX - panState.startX,
-            y: panState.y + event.clientY - panState.startY,
-        };
+    if (panState && canvas.value) {
+        canvas.value.scrollLeft = panState.scrollLeft - (event.clientX - panState.startX);
+        canvas.value.scrollTop = panState.scrollTop - (event.clientY - panState.startY);
+    }
 };
 const pointerUp = () => {
     if (dragState || resizeState) checkpoint();
@@ -620,32 +624,42 @@ const removeSelected = () => {
 const fitView = () => {
     if (!nodes.value.length || !canvas.value) return;
     const rect = canvas.value.getBoundingClientRect();
-    const minX = Math.min(...nodes.value.map((node) => node.position.x)),
-        minY = Math.min(...nodes.value.map((node) => node.position.y));
-    const maxX = Math.max(
-            ...nodes.value.map(
-                (node) => node.position.x + nodeSize(node).width,
-            ),
-        ),
-        maxY = Math.max(
-            ...nodes.value.map(
-                (node) => node.position.y + nodeSize(node).height,
-            ),
-        );
-    zoom.value = Math.min(
-        1.15,
-        Math.max(
-            0.35,
-            Math.min(
-                (rect.width - 120) / (maxX - minX),
-                (rect.height - 120) / (maxY - minY),
-            ),
-        ),
-    );
-    pan.value = {
-        x: (rect.width - (maxX - minX) * zoom.value) / 2 - minX * zoom.value,
-        y: (rect.height - (maxY - minY) * zoom.value) / 2 - minY * zoom.value,
-    };
+    const minX = Math.min(...nodes.value.map((node) => node.position.x));
+    const minY = Math.min(...nodes.value.map((node) => node.position.y));
+    const maxX = Math.max(...nodes.value.map((node) => node.position.x + nodeSize(node).width));
+    const maxY = Math.max(...nodes.value.map((node) => node.position.y + nodeSize(node).height));
+    const fittedZoom = Math.min(1.15, Math.max(0.35, Math.min(
+        (rect.width - 120) / Math.max(1, maxX - minX),
+        (rect.height - 120) / Math.max(1, maxY - minY),
+    )));
+    zoom.value = fittedZoom;
+    nextTick(() => {
+        if (!canvas.value) return;
+        canvas.value.scrollLeft = Math.max(0, workspacePadding + minX * fittedZoom - (rect.width - (maxX - minX) * fittedZoom) / 2);
+        canvas.value.scrollTop = Math.max(0, workspacePadding + minY * fittedZoom - (rect.height - (maxY - minY) * fittedZoom) / 2);
+    });
+};
+const setZoom = (nextZoom, clientX, clientY) => {
+    if (!canvas.value) return;
+    const boundedZoom = Math.min(1.8, Math.max(0.35, nextZoom));
+    if (boundedZoom === zoom.value) return;
+    const rect = canvas.value.getBoundingClientRect();
+    const viewportX = (clientX ?? rect.left + rect.width / 2) - rect.left;
+    const viewportY = (clientY ?? rect.top + rect.height / 2) - rect.top;
+    const worldX = (canvas.value.scrollLeft + viewportX - workspacePadding) / zoom.value;
+    const worldY = (canvas.value.scrollTop + viewportY - workspacePadding) / zoom.value;
+    zoom.value = boundedZoom;
+    nextTick(() => {
+        if (!canvas.value) return;
+        canvas.value.scrollLeft = workspacePadding + worldX * boundedZoom - viewportX;
+        canvas.value.scrollTop = workspacePadding + worldY * boundedZoom - viewportY;
+    });
+};
+const zoomBy = (delta) => setZoom(zoom.value + delta);
+const handleWheel = (event) => {
+    if (!event.ctrlKey && !event.metaKey) return;
+    event.preventDefault();
+    setZoom(zoom.value + (event.deltaY < 0 ? 0.1 : -0.1), event.clientX, event.clientY);
 };
 const applyTemplate = () => {
     if (
@@ -797,9 +811,9 @@ onUnmounted(() => {
 
 <template>
     <Head :title="`Workflow · ${workflow.name}`" />
-    <AuthenticatedLayout>
+    <AuthenticatedLayout content-class="h-[calc(100dvh-4rem)] min-h-0 overflow-hidden">
         <div
-            class="workflow-page-scroll flex h-[calc(100vh-5.25rem)] min-h-[680px] flex-col overflow-x-scroll overflow-y-hidden bg-slate-100"
+            class="flex h-full min-h-0 min-w-0 flex-col overflow-hidden bg-slate-100"
         >
             <header
                 class="grid shrink-0 gap-3 border-b border-slate-200 bg-white px-5 py-3 xl:grid-cols-[minmax(0,1fr)_auto] xl:items-center"
@@ -938,23 +952,26 @@ onUnmounted(() => {
                     Annuler
                 </button>
             </div>
-            <div
-                class="grid min-h-0 flex-1 grid-cols-1 lg:grid-cols-[230px_minmax(0,1fr)]"
-                :style="{
-                    minWidth: `${canvasWidth + 230}px`,
-                }"
-            >
-                <aside
-                    class="z-10 overflow-y-auto border-r border-slate-200 bg-white p-4"
+            <div class="relative min-h-0 flex-1 overflow-hidden">
+                <Transition
+                    enter-active-class="transition duration-200 ease-out"
+                    enter-from-class="-translate-x-full opacity-0"
+                    leave-active-class="transition duration-150 ease-in"
+                    leave-to-class="-translate-x-full opacity-0"
                 >
-                    <p
-                        class="text-xs font-bold uppercase tracking-[.14em] text-slate-400"
+                    <aside
+                        v-if="libraryOpen"
+                        class="absolute inset-y-0 left-0 z-40 w-[260px] overflow-y-auto border-r border-slate-200 bg-white p-4 shadow-xl"
                     >
-                        Bibliothèque
-                    </p>
-                    <h2 class="mt-1 font-bold text-slate-900">
-                        Étapes du processus
-                    </h2>
+                        <div class="flex items-start justify-between gap-3">
+                            <div>
+                                <p class="text-xs font-bold uppercase tracking-[.14em] text-slate-400">Bibliothèque</p>
+                                <h2 class="mt-1 font-bold text-slate-900">Étapes du processus</h2>
+                            </div>
+                            <button type="button" class="grid h-8 w-8 shrink-0 place-items-center rounded-lg border border-slate-200 text-slate-500 transition hover:bg-slate-100" title="Fermer les étapes" aria-label="Fermer les étapes" @click="libraryOpen = false">
+                                <X :size="16" />
+                            </button>
+                        </div>
                     <div class="mt-4 space-y-2">
                         <button
                             v-for="item in palette"
@@ -996,12 +1013,23 @@ onUnmounted(() => {
                         blocs, puis cliquez sur la poignée sous le départ et la
                         poignée au-dessus de l'arrivée.
                     </div>
-                </aside>
-                <div class="relative min-h-0 min-w-0">
-                    <main
+                    </aside>
+                </Transition>
+                <button
+                    v-if="!libraryOpen"
+                    type="button"
+                    data-no-canvas-pan
+                    class="absolute left-4 top-4 z-30 inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-700 shadow-lg transition hover:border-blue-300 hover:bg-blue-50 hover:text-blue-700"
+                    @click="libraryOpen = true"
+                >
+                    <PanelLeftOpen :size="17" /> Étapes
+                </button>
+                <div class="relative h-full min-h-0 min-w-0">
+                    <div
                         ref="canvas"
-                        class="workflow-canvas relative h-full min-h-0 min-w-0 w-full cursor-grab overflow-x-hidden overflow-y-scroll overscroll-contain bg-[#f8fafc] active:cursor-grabbing"
+                        class="workflow-canvas relative h-full min-h-0 w-full min-w-0 cursor-grab overflow-scroll overscroll-contain bg-[#f8fafc] active:cursor-grabbing"
                         @mousedown="startPan"
+                        @wheel="handleWheel"
                         @dragover.prevent
                         @drop.prevent="dropNode"
                     >
@@ -1009,13 +1037,14 @@ onUnmounted(() => {
                         aria-hidden="true"
                         class="pointer-events-none"
                         :style="{
-                            width: `${canvasWidth}px`,
-                            height: `${canvasHeight}px`,
+                            width: `${workspaceWidth}px`,
+                            height: `${workspaceHeight}px`,
                         }"
                     ></div>
                     <div
                         data-canvas-background
-                        class="absolute inset-0 opacity-70"
+                        class="pointer-events-none absolute left-0 top-0 opacity-70"
+                        :style="{ width: `${workspaceWidth}px`, height: `${workspaceHeight}px` }"
                         style="
                             background-image: radial-gradient(
                                 #cbd5e1 1.2px,
@@ -1029,7 +1058,7 @@ onUnmounted(() => {
                         :style="{
                             width: `${canvasWidth}px`,
                             height: `${canvasHeight}px`,
-                            transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})`,
+                            transform: `translate(${workspacePadding}px, ${workspacePadding}px) scale(${zoom})`,
                         }"
                     >
                         <svg
@@ -1075,6 +1104,31 @@ onUnmounted(() => {
                                     "
                                     marker-end="url(#workflow-arrow)"
                                 />
+                                <g
+                                    class="workflow-flow-arrows pointer-events-none"
+                                    aria-hidden="true"
+                                >
+                                    <path
+                                        v-for="phase in 3"
+                                        :key="`${edge.id}-flow-${phase}`"
+                                        class="workflow-flow-arrow"
+                                        d="M -5 -4 L 5 0 L -5 4 Z"
+                                        :fill="
+                                            selectedEdgeId === edge.id
+                                                ? '#2563eb'
+                                                : '#3b82f6'
+                                        "
+                                    >
+                                        <animateMotion
+                                            :path="pathFor(edge)"
+                                            dur="2.4s"
+                                            :begin="`-${(phase - 1) * 0.8}s`"
+                                            repeatCount="indefinite"
+                                            rotate="auto"
+                                            calcMode="linear"
+                                        />
+                                    </path>
+                                </g>
                                 <g
                                     v-if="edge.label"
                                     :transform="`translate(${edgeLabelPosition(edge).x}, ${edgeLabelPosition(edge).y})`"
@@ -1336,12 +1390,14 @@ onUnmounted(() => {
                             ></button>
                         </div>
                     </div>
+                    </div>
                     <div
-                        class="absolute bottom-5 left-1/2 z-30 flex -translate-x-1/2 items-center gap-1 rounded-xl border border-slate-200 bg-white p-1.5 shadow-lg"
+                        data-no-canvas-pan
+                        class="absolute bottom-5 right-5 z-30 flex items-center gap-1 rounded-xl border border-slate-200 bg-white p-1.5 shadow-lg"
                     >
                         <button
                             class="toolbar-btn border-0"
-                            @click="zoom = Math.max(0.35, zoom - 0.1)"
+                            @click="zoomBy(-0.1)"
                         >
                             <ZoomOut :size="17" /></button
                         ><span
@@ -1349,7 +1405,7 @@ onUnmounted(() => {
                             >{{ Math.round(zoom * 100) }}%</span
                         ><button
                             class="toolbar-btn border-0"
-                            @click="zoom = Math.min(1.8, zoom + 0.1)"
+                            @click="zoomBy(0.1)"
                         >
                             <ZoomIn :size="17" /></button
                         ><button
@@ -1359,7 +1415,6 @@ onUnmounted(() => {
                             <Maximize2 :size="17" />
                         </button>
                     </div>
-                    </main>
                 </div>
             </div>
         </div>
@@ -1377,25 +1432,33 @@ onUnmounted(() => {
 </template>
 
 <style scoped>
-.workflow-page-scroll {
-    scrollbar-color: rgb(100 116 139) rgb(226 232 240);
-    scrollbar-width: auto;
+.workflow-flow-arrow {
+    opacity: 0;
+    animation: workflow-flow-arrow-pulse 2.4s linear infinite;
+    filter: drop-shadow(0 1px 2px rgb(37 99 235 / 0.3));
 }
-.workflow-page-scroll::-webkit-scrollbar {
-    height: 14px;
+.workflow-flow-arrow:nth-child(2) {
+    animation-delay: -0.8s;
 }
-.workflow-page-scroll::-webkit-scrollbar-track {
-    background: rgb(226 232 240);
+.workflow-flow-arrow:nth-child(3) {
+    animation-delay: -1.6s;
 }
-.workflow-page-scroll::-webkit-scrollbar-thumb {
-    min-width: 80px;
-    border: 3px solid rgb(226 232 240);
-    border-radius: 9999px;
-    background: rgb(100 116 139);
+@keyframes workflow-flow-arrow-pulse {
+    0%,
+    100% {
+        opacity: 0;
+    }
+    12%,
+    82% {
+        opacity: 0.9;
+    }
 }
-.workflow-page-scroll::-webkit-scrollbar-thumb:hover {
-    background: rgb(71 85 105);
+@media (prefers-reduced-motion: reduce) {
+    .workflow-flow-arrows {
+        display: none;
+    }
 }
+
 .workflow-canvas {
     scrollbar-gutter: stable;
     scrollbar-color: rgb(148 163 184) rgb(241 245 249);

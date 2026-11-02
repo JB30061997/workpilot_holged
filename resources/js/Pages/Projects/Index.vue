@@ -4,7 +4,7 @@ import AppIcon from "@/Components/AppIcon.vue";
 import Modal from "@/Components/Modal.vue";
 import { useSweetAlert } from "@/Composables/useSweetAlert";
 import AuthenticatedLayout from "@/Layouts/AuthenticatedLayout.vue";
-import { Head, Link, router, useForm, usePage } from "@inertiajs/vue3";
+import { Head, Link, router, useForm } from "@inertiajs/vue3";
 import {
     ChevronDown,
     ChevronUp,
@@ -13,7 +13,6 @@ import {
     Eye,
     EyeOff,
     LoaderCircle,
-    MessageCircleMore,
     MoveVertical,
     Plus,
     Table2,
@@ -39,14 +38,6 @@ const props = defineProps({
 });
 
 const { confirmAction } = useSweetAlert();
-const page = usePage();
-const currentUserId = computed(() => page.props.auth?.user?.id ?? null);
-const canAccessProjectChat = (project) =>
-    (project.project_members ?? project.members ?? []).some(
-        (member) =>
-            String(member.user_id ?? member.user?.id ?? member.id) ===
-            String(currentUserId.value),
-    );
 
 const isFormOpen = ref(false);
 const editingProject = ref(null);
@@ -263,9 +254,11 @@ watch(
 const projectForm = useForm({
     creation_token: crypto.randomUUID(),
     name: "",
+    code: "",
     description: "",
     action_plan_id: "",
     axis_id: "",
+    manager_id: "",
     department_ids: [props.department.id],
     project_members: [],
     department_responsibles: {},
@@ -814,9 +807,11 @@ const openEditForm = (project) => {
     editingProject.value = project;
     projectForm.clearErrors();
     projectForm.name = project.name ?? "";
+    projectForm.code = project.code ?? "";
     projectForm.description = project.description ?? "";
     projectForm.action_plan_id = project.action_plan_id ?? "";
     projectForm.axis_id = project.axis_id ?? "";
+    projectForm.manager_id = project.manager_id ?? "";
     projectForm.project_category_id = project.project_category_id ?? "";
     projectForm.department_ids = (
         project.departments?.length ? project.departments : [props.department]
@@ -1275,7 +1270,7 @@ const duplicateProject = (project) => {
                             </span>
                         </div>
                         <table
-                            class="wp-table w-[2320px] min-w-[2320px] table-fixed"
+                            class="wp-table w-[2250px] min-w-[2250px] table-fixed"
                         >
                             <colgroup>
                                 <col class="w-[130px]" />
@@ -1290,7 +1285,7 @@ const duplicateProject = (project) => {
                                 <col class="w-[180px]" />
                                 <col class="w-[140px]" />
                                 <col class="w-[90px]" />
-                                <col class="w-[240px]" />
+                                <col class="w-[170px]" />
                             </colgroup>
                             <thead>
                                 <tr>
@@ -1451,7 +1446,7 @@ const duplicateProject = (project) => {
                                             />
                                         </button>
                                     </th>
-                                    <th class="pr-5 text-right">Gestion</th>
+                                    <th class="text-right">Gestion</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -1654,10 +1649,8 @@ const duplicateProject = (project) => {
                                     >
                                         {{ project.actions_count }}
                                     </td>
-                                    <td class="min-w-[240px] pr-5">
-                                        <div
-                                            class="flex flex-nowrap items-center justify-end gap-1.5"
-                                        >
+                                    <td class="min-w-[142px]">
+                                        <div class="flex justify-end gap-1">
                                             <button
                                                 type="button"
                                                 class="wp-icon-btn text-blue-700"
@@ -1683,23 +1676,6 @@ const duplicateProject = (project) => {
                                                 aria-label="Workflows et processus"
                                             >
                                                 <Workflow
-                                                    class="h-4 w-4"
-                                                    :stroke-width="2"
-                                                />
-                                            </Link>
-                                            <Link
-                                                v-if="canAccessProjectChat(project)"
-                                                :href="
-                                                    route('project-chat.index', {
-                                                        project: project.id,
-                                                    })
-                                                "
-                                                prefetch
-                                                class="wp-icon-btn text-emerald-700"
-                                                title="Démarrer le chat"
-                                                aria-label="Démarrer le chat"
-                                            >
-                                                <MessageCircleMore
                                                     class="h-4 w-4"
                                                     :stroke-width="2"
                                                 />
@@ -3157,13 +3133,44 @@ const duplicateProject = (project) => {
                             />
                             <InputError :message="projectForm.errors.name" />
                         </label>
+                        <label
+                            class="grid gap-1.5 text-sm font-medium text-slate-700"
+                        >
+                            Code
+                            <input
+                                v-model="projectForm.code"
+                                class="rounded-[4px] border-slate-200 focus:border-blue-500 focus:ring-blue-500"
+                            />
+                            <InputError :message="projectForm.errors.code" />
+                        </label>
+                        <label
+                            class="grid gap-1.5 text-sm font-medium text-slate-700"
+                        >
+                            Responsable
+                            <select
+                                v-model="projectForm.manager_id"
+                                class="rounded-[4px] border-slate-200 focus:border-blue-500 focus:ring-blue-500"
+                            >
+                                <option value="">Non assigné</option>
+                                <option
+                                    v-for="manager in managers"
+                                    :key="manager.id"
+                                    :value="manager.id"
+                                >
+                                    {{ manager.name }}
+                                </option>
+                            </select>
+                            <InputError
+                                :message="projectForm.errors.manager_id"
+                            />
+                        </label>
                         <fieldset
                             class="grid gap-2 rounded-[4px] border border-cyan-200 bg-cyan-50/40 p-4 md:col-span-2"
                         >
                             <legend
                                 class="px-1 text-sm font-bold text-slate-700"
                             >
-                                Départements participants
+                                Départements participants (2 minimum)
                             </legend>
                             <p class="text-xs text-slate-500">
                                 Un projet peut réunir plusieurs départements de
@@ -3223,18 +3230,10 @@ const duplicateProject = (project) => {
                                 class="w-full border-slate-200 bg-white text-sm focus:border-blue-500 focus:ring-blue-500"
                             />
                             <div
-                                v-if="!selectedDepartments.length"
-                                class="border border-dashed border-slate-300 bg-white px-4 py-6 text-center text-sm text-slate-500"
+                                v-for="selectedDepartment in selectedDepartments"
+                                :key="selectedDepartment.id"
+                                class="border border-slate-200 bg-white"
                             >
-                                Sélectionnez au moins un département pour
-                                afficher ses collaborateurs.
-                            </div>
-                            <div class="grid gap-3 lg:grid-cols-2">
-                                <div
-                                    v-for="selectedDepartment in selectedDepartments"
-                                    :key="selectedDepartment.id"
-                                    class="overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm"
-                                >
                                 <div
                                     class="flex items-center justify-between border-b border-slate-200 bg-slate-50 px-3 py-2"
                                 >
@@ -3276,13 +3275,13 @@ const duplicateProject = (project) => {
                                     Aucun utilisateur correspondant à la
                                     recherche.
                                 </div>
-                                    <div
-                                        v-for="user in filteredDepartmentUsers(
-                                            selectedDepartment,
-                                        )"
-                                        :key="user.id"
-                                        class="flex items-center justify-between gap-3 border-b border-slate-100 px-3 py-2 last:border-0"
-                                    >
+                                <div
+                                    v-for="user in filteredDepartmentUsers(
+                                        selectedDepartment,
+                                    )"
+                                    :key="user.id"
+                                    class="flex items-center justify-between gap-3 border-b border-slate-100 px-3 py-2 last:border-0"
+                                >
                                     <label
                                         class="flex min-w-0 flex-1 cursor-pointer items-center gap-3 text-sm text-slate-700"
                                     >
@@ -3344,7 +3343,6 @@ const duplicateProject = (project) => {
                                             >Responsable</span
                                         >
                                     </button>
-                                    </div>
                                 </div>
                             </div>
                             <InputError
@@ -3727,33 +3725,20 @@ const duplicateProject = (project) => {
     white-space: nowrap;
 }
 .wp-icon-btn {
-    width: 34px;
-    height: 34px;
-    flex: 0 0 34px;
+    border: 1px solid #cbd5e1;
+    background: #fff;
+    border-radius: 4px;
+    width: 30px;
+    height: 30px;
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    border: 1px solid #cbd5e1;
-    border-radius: 6px;
-    background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
-    box-shadow: 0 1px 2px rgb(15 23 42 / 0.06);
     font-size: 16px;
     font-weight: 700;
-    transition:
-        transform 150ms ease,
-        border-color 150ms ease,
-        background-color 150ms ease,
-        box-shadow 150ms ease;
 }
 .wp-icon-btn:hover {
-    border-color: #93c5fd;
     background: #eff6ff;
-    box-shadow: 0 4px 10px rgb(37 99 235 / 0.12);
-    transform: translateY(-1px);
-}
-.wp-icon-btn:focus-visible {
-    outline: 2px solid #3b82f6;
-    outline-offset: 2px;
+    border-color: #93c5fd;
 }
 .wp-table-scroll {
     scrollbar-width: thin;

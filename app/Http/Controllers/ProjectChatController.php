@@ -3,13 +3,16 @@
 namespace App\Http\Controllers;
 
 use App\Models\Project;
+use App\Models\User;
 use App\Models\ProjectChatAttachment;
 use App\Models\ProjectChatMessage;
 use App\Models\ProjectChatRead;
+use App\Notifications\ProjectChatMessageNotification;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 use Symfony\Component\HttpFoundation\StreamedResponse;
@@ -294,6 +297,35 @@ class ProjectChatController extends Controller
             }
 
             throw $e;
+        }
+
+        // Notifier les autres membres après l'enregistrement du message.
+        // Ne jamais bloquer l'envoi du message si la notification échoue.
+        try {
+            $message->loadMissing(['project', 'user']);
+
+            User::query()
+                ->whereIn(
+                    'id',
+                    DB::table('project_members')
+                        ->where('project_id', $project->id)
+                        ->where('user_id', '<>', $request->user()->id)
+                        ->select('user_id')
+                )
+                ->chunkById(100, function ($recipients) use ($message) {
+                    foreach ($recipients as $recipient) {
+                        $recipient->notify(
+                            (new ProjectChatMessageNotification($message))
+                                ->afterCommit()
+                        );
+                    }
+                });
+        } catch (\Throwable $e) {
+            Log::error('Erreur notification Project Chat', [
+                'project_id' => $project->id,
+                'message_id' => $message->id,
+                'error' => $e->getMessage(),
+            ]);
         }
 
         return response()->json(

@@ -16,6 +16,7 @@ use App\Http\Controllers\DepartmentController;
 use App\Http\Controllers\DepartmentMemberController;
 use App\Http\Controllers\GlpiController;
 use App\Http\Controllers\GmailIntegrationController;
+use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\OrganizationController;
 use App\Http\Controllers\OrganizationMemberController;
 use App\Http\Controllers\PermissionController;
@@ -73,6 +74,13 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
     Route::get('/dashboard', [DashboardController::class, 'index'])
         ->name('dashboard');
+
+    Route::patch('/notifications/{notification}/read', [NotificationController::class, 'read'])
+        ->name('notifications.read');
+
+    Route::patch('/notifications/read-all', [NotificationController::class, 'readAll'])
+        ->name('notifications.read-all');
+
 
     Route::get('/workflows', [WorkflowController::class, 'library'])
         ->name('workflows.library');

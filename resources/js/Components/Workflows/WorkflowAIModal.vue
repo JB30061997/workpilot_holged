@@ -48,7 +48,7 @@ onUnmounted(() => { document.body.style.overflow = ""; });
             <div v-if="show" class="fixed inset-0 z-[90] grid place-items-center bg-slate-950/65 p-3 backdrop-blur-sm" @mousedown.self="close">
                 <div class="flex max-h-[94dvh] w-full max-w-5xl flex-col overflow-hidden rounded-2xl border border-white/10 bg-white shadow-2xl">
                     <header class="flex shrink-0 items-start justify-between gap-4 border-b border-slate-200 px-5 py-4 sm:px-7">
-                        <div class="flex gap-3"><span class="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-gradient-to-br from-blue-600 to-violet-600 text-white shadow-lg shadow-blue-200"><Sparkles :size="21" /></span><div><h2 class="text-xl font-black text-slate-950">Générer un workflow avec IA</h2><p class="mt-1 text-sm text-slate-500">Décrivez votre processus et laissez WorkPilot construire les étapes automatiquement.</p></div></div>
+                        <div class="flex gap-3"><span class="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-gradient-to-br from-blue-600 to-violet-600 text-white shadow-lg shadow-blue-200"><Sparkles :size="21" /></span><div><h2 class="text-xl font-black text-slate-950">Générer un processus avec IA</h2><p class="mt-1 text-sm text-slate-500">Décrivez votre processus et laissez WorkPilot construire les étapes automatiquement.</p></div></div>
                         <button class="grid h-9 w-9 shrink-0 place-items-center rounded-lg border border-slate-200 text-slate-500 hover:bg-slate-50" :disabled="loading" @click="close"><X :size="18" /></button>
                     </header>
 
@@ -76,7 +76,7 @@ onUnmounted(() => { document.body.style.overflow = ""; });
                         <button class="rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-bold text-slate-600 hover:bg-slate-50" :disabled="loading" @click="close">Annuler</button>
                         <button v-if="proposal" class="inline-flex items-center gap-2 rounded-xl border border-blue-200 px-4 py-2.5 text-sm font-bold text-blue-700 hover:bg-blue-50" :disabled="loading" @click="proposal = null; generate()"><RefreshCw :size="16" /> Régénérer</button>
                         <button v-if="proposal" class="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-5 py-2.5 text-sm font-bold text-white hover:bg-blue-700" @click="apply"><CheckCircle2 :size="17" /> Appliquer la proposition</button>
-                        <button v-else class="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-blue-600 to-violet-600 px-5 py-2.5 text-sm font-bold text-white shadow-lg shadow-blue-200 disabled:cursor-not-allowed disabled:opacity-50" :disabled="!canGenerate" @click="generate"><LoaderCircle v-if="loading" class="animate-spin" :size="17" /><Sparkles v-else :size="17" />{{ loading ? 'Génération en cours…' : 'Générer le workflow' }}</button>
+                        <button v-else class="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-blue-600 to-violet-600 px-5 py-2.5 text-sm font-bold text-white shadow-lg shadow-blue-200 disabled:cursor-not-allowed disabled:opacity-50" :disabled="!canGenerate" @click="generate"><LoaderCircle v-if="loading" class="animate-spin" :size="17" /><Sparkles v-else :size="17" />{{ loading ? 'Génération en cours…' : 'Générer le processus' }}</button>
                     </footer>
                 </div>
             </div>

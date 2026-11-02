@@ -338,7 +338,8 @@ const closeProject = () => { selectedProjectId.value = null; };
                                     <h3 class="text-sm font-bold text-slate-900">{{ plan.name }}</h3>
                                     <p class="mt-1 text-[11px] text-slate-500">{{ plan.projects.length }} projets · {{ plan.code || 'Sans code' }}</p>
                                 </div>
-                                <span class="rounded-md bg-blue-50 px-3 py-1.5 text-sm font-bold text-blue-700">{{ durationLabel(planActualDuration(plan)) }}</span>
+                                <!-- <span class="rounded-md bg-blue-50 px-3 py-1.5 text-sm font-bold text-blue-700">{{ durationLabel(planActualDuration(plan)) }}</span> -->
+                                <span class="rounded-md bg-blue-50 px-3 py-1.5 text-sm font-bold text-blue-700">365 jours</span>
                             </div>
                             <div class="grid gap-3 p-4 xl:grid-cols-[210px_minmax(0,1fr)] xl:items-center">
                                 <div class="relative mx-auto w-full max-w-[230px]">
