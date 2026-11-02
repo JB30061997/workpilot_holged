@@ -21,13 +21,16 @@ if (file_exists($maintenance = __DIR__.'/../storage/framework/maintenance.php'))
 
 // Register the Composer autoloader...
 require __DIR__.'/../vendor/autoload.php';
+header('X-Workpilot-Autoload: complete');
 
 // Bootstrap Laravel and handle the request...
 /** @var Application $app */
 $app = require_once __DIR__.'/../bootstrap/app.php';
+header('X-Workpilot-Bootstrap: complete');
 
 $kernel = $app->make(HttpKernel::class);
 $request = Request::capture();
+header('X-Workpilot-Kernel: handling');
 $response = $kernel->handle($request);
 
 $response->headers->set('X-Workpilot-Response-Class', str_replace('\\', '.', $response::class));
