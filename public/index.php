@@ -8,6 +8,12 @@ define('LARAVEL_START', microtime(true));
 
 header('X-Workpilot-Entry: current');
 
+register_shutdown_function(function (): void {
+    if ($error = error_get_last()) {
+        header('X-Workpilot-Fatal: '.base64_encode($error['message'].' @ '.$error['file'].':'.$error['line']));
+    }
+});
+
 // Determine if the application is in maintenance mode...
 if (file_exists($maintenance = __DIR__.'/../storage/framework/maintenance.php')) {
     require $maintenance;
