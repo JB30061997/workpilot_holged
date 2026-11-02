@@ -1,5 +1,5 @@
 <script setup>
-import AuthenticatedLayout from '@/layouts/AuthenticatedLayout.vue';
+import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
 import { Head, Link, router } from '@inertiajs/vue3';
 import { Activity, CalendarDays, ChevronDown, ChevronUp, CirclePlus, FileClock, PencilLine, Search, Trash2 } from 'lucide-vue-next';
 import { computed, reactive, ref } from 'vue';
