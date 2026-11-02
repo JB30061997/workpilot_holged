@@ -41,6 +41,7 @@ use App\Http\Controllers\WorkflowController;
 use App\Http\Controllers\WorkSessionController;
 use Illuminate\Foundation\Application;
 use Illuminate\Support\Facades\Route;
+use App\Http\Controllers\ActionPlanImportController;
 use Inertia\Inertia;
 
 /*
@@ -306,6 +307,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
     | API Resources
     |--------------------------------------------------------------------------
     */
+
+    Route::post('/action-plans/import', [ActionPlanImportController::class, 'store'])
+    ->name('action-plans.import');
 
     Route::apiResources([
         'action-plans' => ActionPlanController::class,

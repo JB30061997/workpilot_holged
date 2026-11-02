@@ -4,7 +4,7 @@ import Modal from '@/Components/Modal.vue';
 import { useSweetAlert } from '@/Composables/useSweetAlert';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
 import { Head, Link, router, useForm, usePage } from '@inertiajs/vue3';
-import { Eye, EyeOff } from 'lucide-vue-next';
+import { Eye, EyeOff, Upload } from 'lucide-vue-next';
 import { computed, onMounted, ref } from 'vue';
 
 const props = defineProps({
@@ -21,6 +21,38 @@ const props = defineProps({
 const { confirmAction } = useSweetAlert();
 
 const planModalOpen = ref(false);
+const importModalOpen = ref(false);
+const importFileInput = ref(null);
+
+const importForm = useForm({
+    file: null,
+});
+
+const openImportModal = () => {
+    importForm.reset();
+    importForm.clearErrors();
+    importModalOpen.value = true;
+};
+
+const closeImportModal = () => {
+    if (importForm.processing) return;
+
+    importModalOpen.value = false;
+    importForm.reset();
+    importForm.clearErrors();
+};
+
+const submitImport = () => {
+    if (!importForm.file || importForm.processing) return;
+
+    importForm.post('/action-plans/import', {
+        forceFormData: true,
+        preserveScroll: true,
+        onSuccess: () => {
+            closeImportModal();
+        },
+    });
+};
 const axisModalOpen = ref(false);
 const editingPlan = ref(null);
 const editingAxis = ref(null);
@@ -439,10 +471,45 @@ const removeAxis = async (axis) => {
         <div class="min-w-0 max-w-full overflow-x-hidden bg-[#f1f3f6]">
             <div class="mx-auto grid min-w-0 max-w-[1700px] gap-4 px-3 py-5 sm:px-5 lg:px-7">
                 <header class="border border-slate-300 bg-[#f8f9fb] px-5 py-5 sm:px-7">
-                    <div class="flex flex-wrap items-center justify-between gap-4">
-                        <div><p class="text-[11px] font-bold uppercase tracking-[.15em] text-blue-700">{{ organization.name }} · {{ department.name }}</p><h1 class="mt-1 text-2xl font-bold text-slate-950">Plans d’action</h1><p class="mt-1 text-sm text-slate-600">Pilotage stratégique des plans, axes et projets</p></div>
-                        <button type="button" class="wp-btn wp-btn-primary" @click="openCreatePlan"><span class="text-lg">＋</span> Nouveau plan</button>
-                    </div>
+                    
+<div class="flex flex-wrap items-center justify-between gap-4">
+    <!-- Titre et description -->
+    <div>
+        <p class="text-[11px] font-bold uppercase tracking-[.15em] text-blue-700">
+            {{ organization.name }} · {{ department.name }}
+        </p>
+
+        <h1 class="mt-1 text-2xl font-bold text-slate-950">
+            Plans d’action
+        </h1>
+
+        <p class="mt-1 text-sm text-slate-600">
+            Pilotage stratégique des plans, axes et projets
+        </p>
+    </div>
+
+    <!-- Boutons d'action -->
+    <div class="flex flex-wrap items-center gap-3">
+        <button
+            type="button"
+            class="wp-btn inline-flex items-center gap-2 border border-blue-200 bg-blue-50 text-blue-700 transition hover:bg-blue-100"
+            @click="openImportModal"
+        >
+            <Upload :size="17" />
+            <span>Importer Excel</span>
+        </button>
+
+        <button
+            type="button"
+            class="wp-btn wp-btn-primary inline-flex items-center gap-2"
+            @click="openCreatePlan"
+        >
+            <span class="text-lg leading-none">＋</span>
+            <span>Nouveau plan</span>
+        </button>
+    </div>
+</div>
+
                     <div class="mt-5 grid grid-cols-2 gap-3 lg:grid-cols-4">
                         <div class="wp-kpi border-blue-200 bg-blue-50"><span>Plans d’action</span><strong>{{ action_plans.total ?? action_plans.data.length }}</strong></div>
                         <div class="wp-kpi border-violet-200 bg-violet-50"><span>Axes stratégiques</span><strong>{{ action_plans.data.reduce((n,p) => n + Number(p.axes_count || 0), 0) }}</strong></div>
@@ -664,6 +731,68 @@ const removeAxis = async (axis) => {
             </form>
         </Modal>
     </AuthenticatedLayout>
+
+
+    <Modal :show="importModalOpen" @close="closeImportModal" max-width="lg">
+    <div class="p-6">
+        <h2 class="text-lg font-semibold text-slate-900">
+            Importer des plans d'action
+        </h2>
+
+        <p class="mt-2 text-sm text-slate-500">
+            Importez un fichier Excel (.xlsx) contenant les plans
+            d'action, axes, projets et actions.
+            Taille maximale : 10 Mo.
+        </p>
+
+        <form @submit.prevent="submitImport" class="mt-6 space-y-5">
+            <div>
+                <label class="mb-2 block text-sm font-medium text-slate-700">
+                    Fichier Excel
+                </label>
+
+                <input
+                    ref="importFileInput"
+                    type="file"
+                    accept=".xlsx"
+                    @change="importForm.file = $event.target.files?.[0] ?? null"
+                    class="block w-full rounded-lg border border-slate-300 p-3 text-sm"
+                />
+
+                <InputError
+                    class="mt-2"
+                    :message="importForm.errors.file"
+                />
+            </div>
+
+            <div
+                v-if="importForm.progress"
+                class="text-sm text-blue-600"
+            >
+                Importation : {{ importForm.progress.percentage }} %
+            </div>
+
+            <div class="flex justify-end gap-3 border-t border-slate-100 pt-4">
+                <button
+                    type="button"
+                    @click="closeImportModal"
+                    :disabled="importForm.processing"
+                    class="rounded-lg border border-slate-300 px-4 py-2 text-sm"
+                >
+                    Annuler
+                </button>
+
+                <button
+                    type="submit"
+                    :disabled="!importForm.file || importForm.processing"
+                    class="rounded-lg bg-blue-600 px-5 py-2 text-sm font-semibold text-white disabled:opacity-50"
+                >
+                    {{ importForm.processing ? 'Importation...' : 'Importer' }}
+                </button>
+            </div>
+        </form>
+    </div>
+</Modal>
 </template>
 
 <style scoped>
