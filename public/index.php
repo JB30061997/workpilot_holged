@@ -1,5 +1,6 @@
 <?php
 
+use Illuminate\Contracts\Http\Kernel as HttpKernel;
 use Illuminate\Foundation\Application;
 use Illuminate\Http\Request;
 
@@ -17,4 +18,12 @@ require __DIR__.'/../vendor/autoload.php';
 /** @var Application $app */
 $app = require_once __DIR__.'/../bootstrap/app.php';
 
-$app->handleRequest(Request::capture());
+$kernel = $app->make(HttpKernel::class);
+$request = Request::capture();
+$response = $kernel->handle($request);
+
+// Let PHP-FPM finish the request when the script exits. Calling
+// fastcgi_finish_request() directly drops the response body on this server.
+$response->send(flush: false);
+
+$kernel->terminate($request, $response);
