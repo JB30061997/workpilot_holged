@@ -39,6 +39,23 @@ const props = defineProps({
 
 const { confirmAction } = useSweetAlert();
 
+const createUuid = () => {
+    if (typeof globalThis.crypto?.randomUUID === "function") {
+        return globalThis.crypto.randomUUID();
+    }
+
+    const bytes = globalThis.crypto.getRandomValues(new Uint8Array(16));
+
+    bytes[6] = (bytes[6] & 0x0f) | 0x40;
+    bytes[8] = (bytes[8] & 0x3f) | 0x80;
+
+    return Array.from(bytes, (byte, index) => {
+        const separator = [4, 6, 8, 10].includes(index) ? "-" : "";
+
+        return `${separator}${byte.toString(16).padStart(2, "0")}`;
+    }).join("");
+};
+
 const isFormOpen = ref(false);
 const editingProject = ref(null);
 const isWorkspaceOpen = ref(false);
@@ -252,7 +269,7 @@ watch(
 );
 
 const projectForm = useForm({
-    creation_token: crypto.randomUUID(),
+    creation_token: createUuid(),
     name: "",
     code: "",
     description: "",
@@ -799,7 +816,7 @@ const resetProjectForm = () => {
 const openCreateForm = () => {
     editingProject.value = null;
     resetProjectForm();
-    projectForm.creation_token = crypto.randomUUID();
+    projectForm.creation_token = createUuid();
     isFormOpen.value = true;
 };
 
