@@ -22,9 +22,12 @@ $kernel = $app->make(HttpKernel::class);
 $request = Request::capture();
 $response = $kernel->handle($request);
 
-$kernel->terminate($request, $response);
+if (is_string($response->getContent())) {
+    $response->headers->set('Content-Length', (string) strlen($response->getContent()));
+}
 
-// Send the response after termination so no terminating callback can discard
-// the buffered body. fastcgi_finish_request() drops the body on this server.
+// fastcgi_finish_request() drops the body on this server, so flush normally.
 $response->send(flush: false);
 flush();
+
+$kernel->terminate($request, $response);
