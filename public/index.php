@@ -23,6 +23,10 @@ $request = Request::capture();
 $response = $kernel->handle($request);
 
 if (is_string($response->getContent())) {
+    $response->headers->set('X-Workpilot-Response-Class', str_replace('\\', '.', $response::class));
+    $response->headers->set('X-Workpilot-Request-Path', $request->path());
+    $response->headers->set('X-Workpilot-Route', (string) ($request->route()?->getName() ?? 'unnamed'));
+    $response->headers->set('X-Workpilot-Preview', base64_encode(substr($response->getContent(), 0, 24)));
     $response->headers->set('Content-Length', (string) strlen($response->getContent()));
 }
 
